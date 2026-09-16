@@ -1,29 +1,35 @@
 import { NextResponse } from "next/server";
 import { randomId } from "@/lib/slug";
-import { createGiftPreference, mpEnabled } from "@/lib/mercadopago";
-import { getAdminDb } from "@/lib/firebase/admin";
 import { BRAND } from "@/lib/brand";
 
 export async function POST(request: Request) {
-  const body = await request.json();
-  const email = String(body.email ?? "").trim().toLowerCase();
-  const giftId = String(body.giftId ?? "");
-  if (!email || !giftId) {
-    return NextResponse.json({ error: "E-mail e presente são obrigatórios." }, { status: 400 });
-  }
-
-  const origin = process.env.NEXT_PUBLIC_APP_URL ?? new URL(request.url).origin;
-  const orderId = randomId(14);
-
-  if (!mpEnabled) {
-    return NextResponse.json({
-      demo: true,
-      orderId,
-      message: "Mercado Pago ainda não configurado. Recado liberado em modo local.",
-    });
-  }
-
   try {
+    const body = (await request.json()) as {
+      email?: string;
+      giftId?: string;
+    };
+    const email = String(body.email ?? "").trim().toLowerCase();
+    const giftId = String(body.giftId ?? "");
+    if (!email || !giftId) {
+      return NextResponse.json(
+        { error: "E-mail e presente são obrigatórios." },
+        { status: 400 },
+      );
+    }
+
+    const origin = process.env.NEXT_PUBLIC_APP_URL ?? new URL(request.url).origin;
+    const orderId = randomId(14);
+
+    if (!process.env.MERCADOPAGO_ACCESS_TOKEN) {
+      return NextResponse.json({
+        demo: true,
+        orderId,
+        message: "Mercado Pago ainda não configurado. Recado liberado em modo local.",
+      });
+    }
+
+    const { createGiftPreference } = await import("@/lib/mercadopago");
+    const { getAdminDb } = await import("@/lib/firebase/admin");
     const preference = await createGiftPreference({
       orderId,
       giftId,
@@ -56,7 +62,7 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error(error);
     return NextResponse.json(
-      { error: "Não deu para abrir o Mercado Pago. Confere as credenciais." },
+      { error: "Não deu para abrir o pagamento. Tenta de novo." },
       { status: 500 },
     );
   }
