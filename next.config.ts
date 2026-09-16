@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  serverExternalPackages: ["firebase-admin", "mercadopago"],
+  serverExternalPackages: ["firebase-admin", "mercadopago", "jose", "jwks-rsa"],
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "images.unsplash.com" },
