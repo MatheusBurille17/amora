@@ -1,0 +1,197 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Document ID: Firebase Auth UID
+    // Fields:
+    //   - uid: string (required, immutable, == auth.uid)
+    //   - email: string (required, 5-120 chars)
+    //   - createdAt: string ISO (required, immutable)
+    //
+    // Collection: gifts
+    // Document ID: gift id
+    // Fields: metadata only. Photo bytes live in /photos/{photoId}
+    //   to stay inside the 1MB document limit without Cloud Storage.
+    //   - photos[]: { id, caption, src: "" }
+    //   - paid/status published only via Admin SDK
+    //
+    // Collection: gifts/{giftId}/photos
+    // Document ID: photo id
+    // Fields:
+    //   - id, caption, order
+    //   - src: data:image/jpeg;base64,... or https URL (demo)
+    //
+    // Collection: pages
+    // Document ID: slug
+    // Public gift snapshot without owner email. Client writes denied.
+    // pages/{slug}/photos is readable so the partner can open the gift.
+    //
+    // Collection: orders
+    // Payment records. Client access denied. Admin SDK only.
+    // ===============================================================
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isValidEmail(email) {
+      return email is string &&
+        email.size() >= 5 &&
+        email.size() <= 120 &&
+        email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    function validString(value, minLen, maxLen) {
+      return value is string && value.size() >= minLen && value.size() <= maxLen;
+    }
+
+    function isValidUser(data) {
+      return data.keys().hasOnly(['uid', 'email', 'createdAt']) &&
+        data.uid is string && data.uid == request.auth.uid &&
+        isValidEmail(data.email) &&
+        validString(data.createdAt, 10, 40);
+    }
+
+    function isValidPhotoMeta(photo) {
+      return photo.keys().hasOnly(['id', 'caption', 'src']) &&
+        validString(photo.id, 1, 40) &&
+        photo.caption is string && photo.caption.size() <= 180 &&
+        photo.src == '';
+    }
+
+    function isValidPhotos(photos) {
+      return photos is list && photos.size() <= 7 &&
+        (photos.size() == 0 ||
+          (isValidPhotoMeta(photos[0]) &&
+           (photos.size() < 2 || isValidPhotoMeta(photos[1])) &&
+           (photos.size() < 3 || isValidPhotoMeta(photos[2])) &&
+           (photos.size() < 4 || isValidPhotoMeta(photos[3])) &&
+           (photos.size() < 5 || isValidPhotoMeta(photos[4])) &&
+           (photos.size() < 6 || isValidPhotoMeta(photos[5])) &&
+           (photos.size() < 7 || isValidPhotoMeta(photos[6]))));
+    }
+
+    function isValidAnswer(answer) {
+      return answer.keys().hasOnly(['id', 'text']) &&
+        validString(answer.id, 1, 40) &&
+        answer.text is string && answer.text.size() <= 4000;
+    }
+
+    function isValidAnswers(answers) {
+      return answers is list && answers.size() <= 4 &&
+        (answers.size() == 0 ||
+          (isValidAnswer(answers[0]) &&
+           (answers.size() < 2 || isValidAnswer(answers[1])) &&
+           (answers.size() < 3 || isValidAnswer(answers[2])) &&
+           (answers.size() < 4 || isValidAnswer(answers[3]))));
+    }
+
+    function isValidGift(data) {
+      return data.keys().hasOnly([
+          'id', 'slug', 'ownerUid', 'email', 'status', 'paid',
+          'authorName', 'recipientName', 'startDate', 'youtubeUrl',
+          'photos', 'answers', 'letter', 'createdAt', 'updatedAt', 'publishedAt'
+        ]) &&
+        validString(data.id, 6, 40) &&
+        validString(data.slug, 4, 40) &&
+        data.ownerUid == request.auth.uid &&
+        isValidEmail(data.email) &&
+        data.status in ['draft', 'published'] &&
+        data.paid is bool &&
+        validString(data.authorName, 0, 80) &&
+        validString(data.recipientName, 0, 80) &&
+        validString(data.startDate, 0, 20) &&
+        data.youtubeUrl is string && data.youtubeUrl.size() <= 300 &&
+        isValidPhotos(data.photos) &&
+        isValidAnswers(data.answers) &&
+        data.letter is string && data.letter.size() <= 8000 &&
+        validString(data.createdAt, 10, 40) &&
+        validString(data.updatedAt, 10, 40) &&
+        (data.publishedAt == null || validString(data.publishedAt, 10, 40));
+    }
+
+    function giftOwner(giftId) {
+      return isAuthenticated() &&
+        exists(/databases/$(database)/documents/gifts/$(giftId)) &&
+        get(/databases/$(database)/documents/gifts/$(giftId)).data.ownerUid == request.auth.uid;
+    }
+
+    function isValidPhotoSrc(url) {
+      return url is string &&
+        url.size() > 12 &&
+        url.size() <= 500000 &&
+        (url.matches("^https://.*") || url.matches("^data:image/jpeg;base64,.*"));
+    }
+
+    function isValidPhotoDoc(data) {
+      return data.keys().hasOnly(['id', 'src', 'caption', 'order']) &&
+        validString(data.id, 1, 40) &&
+        isValidPhotoSrc(data.src) &&
+        data.caption is string && data.caption.size() <= 180 &&
+        data.order is int && data.order >= 0 && data.order <= 6;
+    }
+
+    match /users/{userId} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId) && isValidUser(request.resource.data);
+      allow update: if isOwner(userId) &&
+        isValidUser(request.resource.data) &&
+        request.resource.data.uid == resource.data.uid &&
+        request.resource.data.createdAt == resource.data.createdAt;
+      allow delete: if false;
+    }
+
+    match /gifts/{giftId} {
+      allow read: if isAuthenticated() && resource.data.ownerUid == request.auth.uid;
+      allow create: if isAuthenticated() &&
+        isValidGift(request.resource.data) &&
+        request.resource.data.id == giftId &&
+        request.resource.data.paid == false &&
+        request.resource.data.status == 'draft';
+      allow update: if isAuthenticated() &&
+        resource.data.ownerUid == request.auth.uid &&
+        isValidGift(request.resource.data) &&
+        request.resource.data.id == resource.data.id &&
+        request.resource.data.slug == resource.data.slug &&
+        request.resource.data.ownerUid == resource.data.ownerUid &&
+        request.resource.data.createdAt == resource.data.createdAt &&
+        request.resource.data.paid == resource.data.paid &&
+        request.resource.data.status == resource.data.status;
+      allow delete: if false;
+
+      match /photos/{photoId} {
+        allow read: if giftOwner(giftId);
+        allow create: if giftOwner(giftId) &&
+          isValidPhotoDoc(request.resource.data) &&
+          request.resource.data.id == photoId;
+        allow update: if giftOwner(giftId) &&
+          isValidPhotoDoc(request.resource.data) &&
+          request.resource.data.id == photoId;
+        allow delete: if giftOwner(giftId);
+      }
+    }
+
+    match /pages/{slug} {
+      allow get: if true;
+      allow list: if false;
+      allow create, update, delete: if false;
+
+      match /photos/{photoId} {
+        allow read: if true;
+        allow create, update, delete: if false;
+      }
+    }
+
+    match /orders/{orderId} {
+      allow read, write: if false;
+    }
+  }
+}

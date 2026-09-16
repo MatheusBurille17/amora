@@ -1,0 +1,115 @@
+@import "tailwindcss";
+
+:root {
+  --berry: #9b1d3a;
+  --berry-deep: #6d1028;
+  --ink: #1b1014;
+  --paper: #fff6f0;
+  --blush: #f7d5d8;
+  --gold: #c9a36a;
+  --muted: #7c6670;
+  --background: var(--paper);
+  --foreground: var(--ink);
+}
+
+@theme inline {
+  --color-berry: var(--berry);
+  --color-berry-deep: var(--berry-deep);
+  --color-ink: var(--ink);
+  --color-paper: var(--paper);
+  --color-blush: var(--blush);
+  --color-gold: var(--gold);
+  --color-muted: var(--muted);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-nunito);
+  --font-display: var(--font-fraunces);
+}
+
+* {
+  border-color: color-mix(in srgb, var(--ink) 12%, transparent);
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-nunito), sans-serif;
+}
+
+.font-display {
+  font-family: var(--font-fraunces), serif;
+}
+
+.grain {
+  position: relative;
+}
+
+.grain::after {
+  content: "";
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  opacity: 0.18;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)' opacity='.5'/%3E%3C/svg%3E");
+}
+
+.amora-gradient {
+  background:
+    radial-gradient(1200px 500px at 80% -10%, #e7a0b0 0%, transparent 50%),
+    radial-gradient(900px 420px at 0% 20%, #6d1028 0%, transparent 46%),
+    linear-gradient(180deg, #2a0d16 0%, #4a1424 42%, #9b1d3a 100%);
+}
+
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 999px;
+  background: var(--berry);
+  color: white;
+  font-weight: 800;
+  padding: 0.95rem 1.5rem;
+  transition: transform 0.2s ease, background 0.2s ease;
+}
+
+.btn-primary:hover {
+  background: var(--berry-deep);
+  transform: translateY(-1px);
+}
+
+.btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, white 28%, transparent);
+  color: white;
+  font-weight: 700;
+  padding: 0.95rem 1.5rem;
+}
+
+.field {
+  width: 100%;
+  border-radius: 1.1rem;
+  border: 1px solid color-mix(in srgb, var(--ink) 12%, transparent);
+  background: white;
+  padding: 0.95rem 1rem;
+  outline: none;
+}
+
+.field:focus {
+  border-color: var(--berry);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--berry) 12%, transparent);
+}
+
+.soft-card {
+  border: 1px solid color-mix(in srgb, var(--ink) 8%, transparent);
+  background: white;
+  box-shadow: 0 18px 50px color-mix(in srgb, var(--ink) 6%, transparent);
+}
