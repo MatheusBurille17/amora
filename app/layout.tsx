@@ -17,6 +17,11 @@ const fraunces = Fraunces({
 export const metadata: Metadata = {
   title: `${BRAND.name} · Presente digital para casal`,
   description: BRAND.tagline,
+  applicationName: BRAND.name,
+  icons: {
+    icon: [{ url: "/icon.svg", type: "image/svg+xml" }],
+    apple: [{ url: "/apple-icon", type: "image/png" }],
+  },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
