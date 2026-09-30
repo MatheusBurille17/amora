@@ -23,7 +23,7 @@ export const DEMO_GIFT: Gift = {
     },
     {
       id: "2",
-      src: "https://images.unsplash.com/photo-1516589178581-6cd7833ae3b4?auto=format&fit=crop&w=1200&q=80",
+      src: "https://images.unsplash.com/photo-1518568814500-bf0f8d125f46?auto=format&fit=crop&w=1200&q=80",
       caption: "A primeira viagem. Mapa errado, destino certo.",
     },
     {

@@ -1,10 +1,14 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useGSAP } from "@gsap/react";
+import gsap from "gsap";
 import { formatTogether, timeTogether } from "@/lib/counter";
 import { QUESTIONS } from "@/lib/questions";
 import type { Gift } from "@/lib/types";
 import { extractYoutubeId, youtubeEmbed } from "@/lib/youtube";
+
+gsap.registerPlugin(useGSAP);
 
 type Scene =
   | { type: "cover" }
@@ -25,6 +29,84 @@ function buildScenes(gift: Gift): Scene[] {
   return scenes;
 }
 
+function visiblePhotos(gift: Gift) {
+  return gift.photos.filter((photo) => photo.src);
+}
+
+function scenePhotoSrc(gift: Gift, scene: Scene) {
+  const photos = visiblePhotos(gift);
+  if (!photos.length) return null;
+  if (scene.type === "photo") return gift.photos[scene.index]?.src ?? photos[0].src;
+  if (scene.type === "counter") return photos[Math.min(1, photos.length - 1)]?.src;
+  if (scene.type === "answer") return photos[scene.index % photos.length]?.src;
+  if (scene.type === "letter") return photos[photos.length - 1]?.src;
+  return photos[0].src;
+}
+
+function CoverCollage({ photos }: { photos: { id: string; src: string }[] }) {
+  if (!photos.length) return null;
+  if (photos.length === 1) {
+    return (
+      <img
+        src={photos[0].src}
+        alt=""
+        className="pointer-events-none absolute inset-0 h-full w-full object-cover"
+      />
+    );
+  }
+
+  const shown = photos.slice(0, 4);
+  const grid =
+    shown.length === 2
+      ? "grid-cols-1 grid-rows-2"
+      : shown.length === 3
+        ? "grid-cols-2 grid-rows-2"
+        : "grid-cols-2 grid-rows-2";
+
+  return (
+    <div className={`pointer-events-none absolute inset-0 grid gap-[3px] bg-black ${grid}`}>
+      {shown.map((photo, index) => (
+        <img
+          key={photo.id}
+          src={photo.src}
+          alt=""
+          className={`h-full w-full object-cover ${shown.length === 3 && index === 0 ? "row-span-2" : ""}`}
+        />
+      ))}
+    </div>
+  );
+}
+
+function PhotoBackdrop({ src, animate }: { src: string | null; animate: boolean }) {
+  const rootRef = useRef<HTMLDivElement>(null);
+  const imgRef = useRef<HTMLImageElement>(null);
+
+  useGSAP(
+    () => {
+      if (!animate || !imgRef.current) return;
+      gsap.fromTo(
+        imgRef.current,
+        { scale: 1.05 },
+        { scale: 1.14, duration: 9, ease: "none" },
+      );
+    },
+    { scope: rootRef, dependencies: [src, animate], revertOnUpdate: true },
+  );
+
+  if (!src) return null;
+
+  return (
+    <div ref={rootRef} className="pointer-events-none absolute inset-0 overflow-hidden">
+      <img
+        ref={imgRef}
+        src={src}
+        alt=""
+        className="absolute inset-0 h-full w-full object-cover"
+      />
+    </div>
+  );
+}
+
 export function GiftExperience({
   gift,
   preview = false,
@@ -33,6 +115,7 @@ export function GiftExperience({
   preview?: boolean;
 }) {
   const scenes = useMemo(() => buildScenes(gift), [gift]);
+  const photos = useMemo(() => visiblePhotos(gift), [gift]);
   const [index, setIndex] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [now, setNow] = useState<Date | null>(null);
@@ -40,6 +123,7 @@ export function GiftExperience({
   const scene = scenes[index] ?? { type: "cover" as const };
   const time = now ? timeTogether(gift.startDate, now) : null;
   const filledAnswers = gift.answers.filter((answer) => answer.text.trim());
+  const backgroundSrc = scenePhotoSrc(gift, scene);
 
   useEffect(() => {
     setNow(new Date());
@@ -83,6 +167,12 @@ export function GiftExperience({
         />
       ) : null}
 
+      {scene.type === "cover" ? (
+        <CoverCollage photos={photos} />
+      ) : (
+        <PhotoBackdrop src={backgroundSrc} animate={scene.type !== "photo"} />
+      )}
+
       <div className="pointer-events-none absolute left-4 right-4 top-4 z-30 flex gap-1">
         {scenes.map((_, sceneIndex) => (
           <span
@@ -116,15 +206,7 @@ export function GiftExperience({
         </>
       )}
 
-      {scene.type === "photo" ? (
-        <img
-          src={gift.photos[scene.index]?.src}
-          alt=""
-          className="pointer-events-none absolute inset-0 h-full w-full object-cover"
-        />
-      ) : null}
-
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-black/30" />
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/80 via-black/15 to-black/20" />
 
       <div className="pointer-events-none relative z-10 flex min-h-dvh flex-col justify-end px-6 pb-12 pt-16">
         {preview ? (

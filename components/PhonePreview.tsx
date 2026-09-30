@@ -21,7 +21,7 @@ export function PhonePreview() {
           className="relative h-[540px] bg-cover bg-center"
           style={{
             backgroundImage:
-              "url(https://images.unsplash.com/photo-1516589178581-6cd7833ae3b4?auto=format&fit=crop&w=900&q=80)",
+              "url(https://images.unsplash.com/photo-1522673607200-164d1b6ce486?auto=format&fit=crop&w=900&q=80)",
           }}
         >
           <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-black/30" />
