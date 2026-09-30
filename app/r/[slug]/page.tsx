@@ -3,7 +3,6 @@
 import { use, useEffect, useState } from "react";
 import { GiftExperience } from "@/components/GiftExperience";
 import { DEMO_GIFT } from "@/lib/demo";
-import { getLocalGiftBySlug } from "@/lib/store";
 import type { Gift } from "@/lib/types";
 
 export default function RecadoPage({
@@ -17,21 +16,13 @@ export default function RecadoPage({
 
   useEffect(() => {
     if (slug === "ensaio") return;
-    const local = getLocalGiftBySlug(slug);
-    if (local?.paid) {
-      setGift(local);
-      return;
-    }
     void fetch(`/api/pages/${slug}`)
       .then(async (response) => {
         if (!response.ok) throw new Error("missing");
         return response.json();
       })
       .then((data) => setGift(data.gift))
-      .catch(() => {
-        if (local) setGift(local);
-        else setMissing(true);
-      });
+      .catch(() => setMissing(true));
   }, [slug]);
 
   if (missing) {

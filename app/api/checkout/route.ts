@@ -28,8 +28,23 @@ export async function POST(request: Request) {
       });
     }
 
-    const { createGiftPreference } = await import("@/lib/mercadopago");
     const { getAdminDb } = await import("@/lib/firebase/admin");
+    const db = getAdminDb();
+    if (db) {
+      const giftSnap = await db.collection("gifts").doc(giftId).get();
+      if (!giftSnap.exists) {
+        return NextResponse.json({ error: "Presente não encontrado." }, { status: 404 });
+      }
+      const gift = giftSnap.data() as { paid?: boolean; email?: string };
+      if (gift.paid) {
+        return NextResponse.json({ error: "Esse recado já foi liberado." }, { status: 409 });
+      }
+      if (gift.email && gift.email !== email) {
+        return NextResponse.json({ error: "Esse presente pertence a outro e-mail." }, { status: 403 });
+      }
+    }
+
+    const { createGiftPreference } = await import("@/lib/mercadopago");
     const preference = await createGiftPreference({
       orderId,
       giftId,
@@ -37,7 +52,6 @@ export async function POST(request: Request) {
       origin,
     });
 
-    const db = getAdminDb();
     if (db) {
       await db.collection("orders").doc(orderId).set({
         id: orderId,

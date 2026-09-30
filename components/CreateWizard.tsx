@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { GiftExperience } from "@/components/GiftExperience";
 import { Logo } from "@/components/Logo";
@@ -10,12 +10,13 @@ import { isGiftComplete } from "@/lib/gift";
 import { compressImage } from "@/lib/image";
 import { QUESTIONS } from "@/lib/questions";
 import { randomId } from "@/lib/slug";
-import { getSessionEmail, loadDraft, saveDraft, setSessionEmail, upsertLocalGift } from "@/lib/store";
+import { getSessionEmail, getLocalGiftById, loadDraft, saveDraft, setSessionEmail, upsertLocalGift } from "@/lib/store";
 import type { Gift } from "@/lib/types";
 import { extractYoutubeId } from "@/lib/youtube";
 import { useAuth } from "@/components/AuthProvider";
 import { firebaseEnabled, getFirebaseAuth } from "@/lib/firebase/client";
-import { saveGiftRemote } from "@/lib/firebase/gifts";
+import { getGiftRemote, saveGiftRemote } from "@/lib/firebase/gifts";
+import { startCheckout } from "@/lib/pay";
 import {
   authErrorMessage,
   signInWithEmail,
@@ -27,6 +28,7 @@ const STEPS = ["Nomes", "Data", "Fotos", "Música", "Recados", "Carta", "Pagar"]
 
 export function CreateWizard() {
   const router = useRouter();
+  const search = useSearchParams();
   const { user } = useAuth();
   const [gift, setGift] = useState<Gift | null>(null);
   const [step, setStep] = useState(0);
@@ -38,10 +40,27 @@ export function CreateWizard() {
   const [authMode, setAuthMode] = useState<"signup" | "login">("signup");
 
   useEffect(() => {
-    const draft = loadDraft();
-    if (!draft.email) draft.email = user?.email ?? getSessionEmail();
-    setGift(draft);
-  }, [user]);
+    const editId = search.get("editar");
+    const failedPay = search.get("pagamento") === "falhou";
+    if (failedPay) setError("O pagamento não entrou. Você pode tentar de novo — o recado continua salvo.");
+
+    void (async () => {
+      let draft = loadDraft();
+      if (editId) {
+        const remote = user ? await getGiftRemote(editId).catch(() => null) : null;
+        const local = getLocalGiftById(editId);
+        draft = remote ?? local ?? draft;
+        if (draft.paid) {
+          router.replace(`/painel/${draft.id}`);
+          return;
+        }
+        saveDraft(draft);
+        if (isGiftComplete(draft)) setStep(6);
+      }
+      if (!draft.email) draft.email = user?.email ?? getSessionEmail();
+      setGift(draft);
+    })();
+  }, [user, search, router]);
 
   function update(patch: Partial<Gift>) {
     setGift((current) => {
@@ -95,19 +114,7 @@ export function CreateWizard() {
         }
         await saveGiftRemote({ ...paidLocal, paid: false, status: "draft" }, uid);
       }
-      const response = await fetch("/api/checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          giftId: paidLocal.id,
-          slug: paidLocal.slug,
-          email: paidLocal.email,
-          authorName: paidLocal.authorName,
-          recipientName: paidLocal.recipientName,
-        }),
-      });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "Falha no pagamento");
+      const data = await startCheckout(paidLocal.email, paidLocal.id);
       if (data.demo) {
         const published = {
           ...paidLocal,

@@ -12,12 +12,25 @@ export function QrPanel({ gift, origin }: { gift: Gift; origin: string }) {
   const [dataUrl, setDataUrl] = useState("");
 
   useEffect(() => {
+    if (!gift.paid) return;
     void QRCode.toDataURL(url, {
       margin: 1,
       width: 640,
       color: { dark: "#1b1014", light: "#fff6f0" },
     }).then(setDataUrl);
-  }, [url]);
+  }, [gift.paid, url]);
+
+  if (!gift.paid) {
+    return (
+      <section className="soft-card rounded-[2rem] p-6 text-center">
+        <p className="font-display text-3xl">QR ainda não liberado</p>
+        <p className="mt-2 text-muted">Paga o recado para gerar o link e o código.</p>
+        <Link href={`/painel/${gift.id}`} className="btn-primary mt-5 inline-flex">
+          Ir pagar
+        </Link>
+      </section>
+    );
+  }
 
   const whatsapp = `https://wa.me/?text=${encodeURIComponent(`Tem um recado meu pra você: ${url}`)}`;
 

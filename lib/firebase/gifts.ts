@@ -83,11 +83,6 @@ export async function saveGiftRemote(gift: Gift, uid: string) {
   await setDoc(doc(db, "gifts", gift.id), payload, { merge: true });
   await writePhotos(["gifts", gift.id, "photos"], gift.photos);
 
-  if (payload.paid && payload.status === "published") {
-    await setDoc(doc(db, "pages", payload.slug), toPublicGift(payload), { merge: true });
-    await writePhotos(["pages", payload.slug, "photos"], gift.photos);
-  }
-
   return { ...payload, photos: gift.photos };
 }
 

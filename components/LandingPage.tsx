@@ -73,7 +73,7 @@ export function LandingPage() {
         <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-5">
           <Logo light />
           <div className="flex items-center gap-3">
-            <Link href="/entrar" className="hidden text-sm font-bold text-white/80 sm:inline">
+            <Link href="/entrar" className="text-sm font-bold text-white/80">
               Entrar
             </Link>
             <Link href="/criar" className="rounded-full bg-white px-4 py-2 text-sm font-extrabold text-berry">
