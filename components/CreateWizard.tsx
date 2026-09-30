@@ -13,26 +13,35 @@ import { randomId } from "@/lib/slug";
 import { getSessionEmail, loadDraft, saveDraft, setSessionEmail, upsertLocalGift } from "@/lib/store";
 import type { Gift } from "@/lib/types";
 import { extractYoutubeId } from "@/lib/youtube";
+import { useAuth } from "@/components/AuthProvider";
 import { firebaseEnabled, getFirebaseAuth } from "@/lib/firebase/client";
 import { saveGiftRemote } from "@/lib/firebase/gifts";
-import { signInAnonymously } from "firebase/auth";
+import {
+  authErrorMessage,
+  signInWithEmail,
+  signOutUser,
+  signUpWithEmail,
+} from "@/lib/firebase/auth";
 
 const STEPS = ["Nomes", "Data", "Fotos", "Música", "Recados", "Carta", "Pagar"] as const;
 
 export function CreateWizard() {
   const router = useRouter();
+  const { user } = useAuth();
   const [gift, setGift] = useState<Gift | null>(null);
   const [step, setStep] = useState(0);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [preview, setPreview] = useState(false);
   const [questionIndex, setQuestionIndex] = useState(0);
+  const [password, setPassword] = useState("");
+  const [authMode, setAuthMode] = useState<"signup" | "login">("signup");
 
   useEffect(() => {
     const draft = loadDraft();
-    if (!draft.email) draft.email = getSessionEmail();
+    if (!draft.email) draft.email = user?.email ?? getSessionEmail();
     setGift(draft);
-  }, []);
+  }, [user]);
 
   function update(patch: Partial<Gift>) {
     setGift((current) => {
@@ -60,25 +69,31 @@ export function CreateWizard() {
       setError("Preencha nomes, data, pelo menos uma foto e a carta.");
       return;
     }
-    if (!gift.email.trim()) {
-      setError("Coloca um e-mail para receber o link.");
+    const email = (user?.email || gift.email).trim().toLowerCase();
+    if (!email) {
+      setError("Coloca um e-mail para criar sua conta.");
+      return;
+    }
+    if (firebaseEnabled && !user && password.length < 6) {
+      setError("Cria uma senha com pelo menos 6 caracteres. É com ela que você acha o QR depois.");
       return;
     }
     setBusy(true);
-    setSessionEmail(gift.email.trim());
-    const paidLocal = { ...gift, email: gift.email.trim(), updatedAt: new Date().toISOString() };
+    setSessionEmail(email);
+    const paidLocal = { ...gift, email, updatedAt: new Date().toISOString() };
     saveDraft(paidLocal);
     try {
       if (firebaseEnabled) {
-        try {
-          const auth = getFirebaseAuth();
-          if (auth && !auth.currentUser) await signInAnonymously(auth);
-          if (auth?.currentUser) {
-            await saveGiftRemote({ ...paidLocal, paid: false, status: "draft" }, auth.currentUser.uid);
-          }
-        } catch (firebaseError) {
-          console.error(firebaseError);
+        const auth = getFirebaseAuth();
+        let uid = auth?.currentUser?.uid ?? user?.uid;
+        if (!uid) {
+          const account =
+            authMode === "login"
+              ? await signInWithEmail(paidLocal.email, password)
+              : await signUpWithEmail(paidLocal.email, password);
+          uid = account.uid;
         }
+        await saveGiftRemote({ ...paidLocal, paid: false, status: "draft" }, uid);
       }
       const response = await fetch("/api/checkout", {
         method: "POST",
@@ -111,7 +126,7 @@ export function CreateWizard() {
       }
       throw new Error("Checkout sem destino");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Não deu para iniciar o pagamento.");
+      setError(authErrorMessage(err));
     } finally {
       setBusy(false);
     }
@@ -276,18 +291,54 @@ export function CreateWizard() {
             <section className="mt-4 space-y-4">
               <h1 className="font-display text-4xl">Liberar o recado</h1>
               <p className="text-muted">
-                {BRAND.priceLabel} uma vez. Link + QR Code na hora. Fica no ar para sempre.
+                {BRAND.priceLabel} uma vez. Cria sua conta, paga, e o QR fica no seu painel para sempre.
               </p>
-              <label className="block">
-                <span className="mb-2 block text-sm font-bold">Seu e-mail</span>
-                <input
-                  className="field"
-                  type="email"
-                  value={gift.email}
-                  onChange={(e) => update({ email: e.target.value })}
-                  placeholder="voce@email.com"
-                />
-              </label>
+              {user ? (
+                <div className="soft-card rounded-3xl p-5">
+                  <p className="text-sm font-bold text-muted">Conectado como</p>
+                  <p className="font-extrabold">{user.email}</p>
+                  <button className="mt-3 text-sm font-bold text-berry" onClick={() => void signOutUser()}>
+                    Usar outro e-mail
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <div className="flex gap-2">
+                    <button
+                      className={`rounded-full px-4 py-2 text-sm font-extrabold ${authMode === "signup" ? "bg-berry text-white" : "bg-white"}`}
+                      onClick={() => setAuthMode("signup")}
+                    >
+                      Criar conta
+                    </button>
+                    <button
+                      className={`rounded-full px-4 py-2 text-sm font-extrabold ${authMode === "login" ? "bg-berry text-white" : "bg-white"}`}
+                      onClick={() => setAuthMode("login")}
+                    >
+                      Já tenho conta
+                    </button>
+                  </div>
+                  <label className="block">
+                    <span className="mb-2 block text-sm font-bold">E-mail</span>
+                    <input
+                      className="field"
+                      type="email"
+                      value={gift.email}
+                      onChange={(e) => update({ email: e.target.value })}
+                      placeholder="voce@email.com"
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="mb-2 block text-sm font-bold">Senha</span>
+                    <input
+                      className="field"
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="Mínimo 6 caracteres"
+                    />
+                  </label>
+                </>
+              )}
               <div className="soft-card rounded-3xl p-5">
                 <p className="font-extrabold">{gift.authorName} → {gift.recipientName}</p>
                 <p className="text-sm text-muted">

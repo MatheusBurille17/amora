@@ -7,7 +7,7 @@ const STEPS = [
   {
     n: "01",
     title: "Monte em 5 minutos",
-    text: "Nomes, a data de vocês, fotos, a música e um recado. Sem cadastro complicado.",
+    text: "Nomes, fotos, a música e um recado. Na hora de pagar você cria uma conta com e-mail e senha.",
   },
   {
     n: "02",
@@ -45,6 +45,10 @@ const FAQS = [
     a: "Sim. R$ 19,90 uma vez. Sem plano de 24 horas, sem letra miúda. Você pode editar depois.",
   },
   {
+    q: "Preciso de conta?",
+    a: "Sim, na hora de pagar: e-mail e senha. Assim você acha o QR depois, em qualquer celular. Quem recebe o presente não precisa de conta.",
+  },
+  {
     q: "Precisa saber mexer em site?",
     a: "Não. É um passo a passo de uns 5 minutos. Se souber mandar foto no WhatsApp, sabe criar um recado Amora.",
   },
@@ -69,7 +73,7 @@ export function LandingPage() {
         <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-5">
           <Logo light />
           <div className="flex items-center gap-3">
-            <Link href="/painel" className="hidden text-sm font-bold text-white/80 sm:inline">
+            <Link href="/entrar" className="hidden text-sm font-bold text-white/80 sm:inline">
               Entrar
             </Link>
             <Link href="/criar" className="rounded-full bg-white px-4 py-2 text-sm font-extrabold text-berry">
