@@ -115,7 +115,7 @@ service cloud.firestore {
         data.letter is string && data.letter.size() <= 8000 &&
         validString(data.createdAt, 10, 40) &&
         validString(data.updatedAt, 10, 40) &&
-        (data.publishedAt == null || validString(data.publishedAt, 10, 40));
+        (!('publishedAt' in data) || data.publishedAt == null || validString(data.publishedAt, 10, 40));
     }
 
     function giftOwner(giftId) {
@@ -124,10 +124,16 @@ service cloud.firestore {
         get(/databases/$(database)/documents/gifts/$(giftId)).data.ownerUid == request.auth.uid;
     }
 
+    function giftOwnerAfter(giftId) {
+      return isAuthenticated() &&
+        existsAfter(/databases/$(database)/documents/gifts/$(giftId)) &&
+        getAfter(/databases/$(database)/documents/gifts/$(giftId)).data.ownerUid == request.auth.uid;
+    }
+
     function isValidPhotoSrc(url) {
       return url is string &&
         url.size() > 12 &&
-        url.size() <= 500000 &&
+        url.size() <= 900000 &&
         (url.matches("^https://.*") || url.matches("^data:image/jpeg;base64,.*"));
     }
 
@@ -136,7 +142,7 @@ service cloud.firestore {
         validString(data.id, 1, 40) &&
         isValidPhotoSrc(data.src) &&
         data.caption is string && data.caption.size() <= 180 &&
-        data.order is int && data.order >= 0 && data.order <= 6;
+        (data.order is int || data.order is float) && data.order >= 0 && data.order <= 6;
     }
 
     match /users/{userId} {
@@ -169,10 +175,10 @@ service cloud.firestore {
 
       match /photos/{photoId} {
         allow read: if giftOwner(giftId);
-        allow create: if giftOwner(giftId) &&
+        allow create: if giftOwnerAfter(giftId) &&
           isValidPhotoDoc(request.resource.data) &&
           request.resource.data.id == photoId;
-        allow update: if giftOwner(giftId) &&
+        allow update: if giftOwnerAfter(giftId) &&
           isValidPhotoDoc(request.resource.data) &&
           request.resource.data.id == photoId;
         allow delete: if giftOwner(giftId);

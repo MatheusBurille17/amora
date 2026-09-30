@@ -9,9 +9,42 @@ import {
 } from "firebase/firestore";
 import { getFirebaseDb } from "@/lib/firebase/client";
 import type { Gift, GiftPhoto } from "@/lib/types";
-import { toPublicGift, withoutPhotoBytes } from "@/lib/gift";
+import { toPublicGift } from "@/lib/gift";
 
 type PhotoDoc = GiftPhoto & { order: number };
+
+function clip(value: string, max: number) {
+  return value.slice(0, max);
+}
+
+function sanitizeGiftPayload(gift: Gift, uid: string): Gift {
+  const now = new Date().toISOString();
+  return {
+    id: clip(gift.id, 40),
+    slug: clip(gift.slug, 40),
+    ownerUid: uid,
+    email: gift.email.trim().toLowerCase().slice(0, 120),
+    status: gift.status === "published" ? "published" : "draft",
+    paid: Boolean(gift.paid),
+    authorName: clip(gift.authorName, 80),
+    recipientName: clip(gift.recipientName, 80),
+    startDate: clip(gift.startDate, 20),
+    youtubeUrl: clip(gift.youtubeUrl, 300),
+    photos: gift.photos.slice(0, 7).map((photo) => ({
+      id: clip(photo.id, 40),
+      caption: clip(photo.caption, 180),
+      src: "",
+    })),
+    answers: gift.answers.slice(0, 4).map((answer) => ({
+      id: clip(answer.id, 40),
+      text: clip(answer.text, 4000),
+    })),
+    letter: clip(gift.letter, 8000),
+    createdAt: gift.createdAt || now,
+    updatedAt: now,
+    publishedAt: gift.publishedAt,
+  };
+}
 
 async function writePhotos(
   path: [string, string, string],
@@ -20,11 +53,11 @@ async function writePhotos(
   const db = getFirebaseDb();
   if (!db) throw new Error("Firebase não configurado");
   await Promise.all(
-    photos.map((photo, order) =>
-      setDoc(doc(db, path[0], path[1], path[2], photo.id), {
-        id: photo.id,
-        src: photo.src,
-        caption: photo.caption,
+    photos.slice(0, 7).map((photo, order) =>
+      setDoc(doc(db, path[0], path[1], path[2], clip(photo.id, 40)), {
+        id: clip(photo.id, 40),
+        src: photo.src.slice(0, 900_000),
+        caption: clip(photo.caption, 180),
         order,
       } satisfies PhotoDoc),
     ),
@@ -45,11 +78,7 @@ export async function saveGiftRemote(gift: Gift, uid: string) {
   const db = getFirebaseDb();
   if (!db) throw new Error("Firebase não configurado");
 
-  const payload: Gift = withoutPhotoBytes({
-    ...gift,
-    ownerUid: uid,
-    updatedAt: new Date().toISOString(),
-  });
+  const payload = sanitizeGiftPayload(gift, uid);
 
   await setDoc(doc(db, "gifts", gift.id), payload, { merge: true });
   await writePhotos(["gifts", gift.id, "photos"], gift.photos);

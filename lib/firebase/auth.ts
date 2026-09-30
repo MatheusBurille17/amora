@@ -54,6 +54,7 @@ export async function signOutUser() {
 
 export function authErrorMessage(error: unknown) {
   const code = typeof error === "object" && error && "code" in error ? String(error.code) : "";
+  const message = error instanceof Error ? error.message : "";
   if (code === "auth/email-already-in-use") {
     return "Esse e-mail já tem conta. Entra com a senha.";
   }
@@ -69,7 +70,10 @@ export function authErrorMessage(error: unknown) {
   if (code === "auth/operation-not-allowed") {
     return "Ativa o login por e-mail e senha no Firebase Authentication.";
   }
-  if (error instanceof Error && error.message) return error.message;
+  if (code === "permission-denied" || /insufficient permissions/i.test(message)) {
+    return "O Firebase ainda não liberou a gravação. Confere se o Firestore está criado e as regras publicadas.";
+  }
+  if (message) return message;
   return "Não deu para entrar. Tenta de novo.";
 }
 
