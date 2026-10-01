@@ -32,6 +32,9 @@ export function PhonePreview() {
             <span className="h-1 flex-1 rounded-full bg-white/30" />
           </div>
           <div className="absolute bottom-0 p-5 text-white">
+            <p className="mb-3 w-fit rounded-full bg-white/15 px-3 py-1 text-[11px] font-bold tracking-wide">
+              Toque para abrir
+            </p>
             <p className="text-[11px] uppercase tracking-[0.28em] text-blush">Juntos</p>
             <h3 className="font-display text-3xl">Léo & Maya</h3>
             <p className="mt-1 text-sm text-white/80">

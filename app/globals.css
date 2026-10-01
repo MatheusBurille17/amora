@@ -92,6 +92,15 @@ body {
   color: white;
   font-weight: 700;
   padding: 0.95rem 1.5rem;
+  transition: background 0.2s ease;
+}
+
+.btn-ghost:hover {
+  background: color-mix(in srgb, white 12%, transparent);
+}
+
+details summary::-webkit-details-marker {
+  display: none;
 }
 
 .field {
