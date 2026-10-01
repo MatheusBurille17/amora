@@ -5,10 +5,12 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { GiftExperience } from "@/components/GiftExperience";
 import { Logo } from "@/components/Logo";
+import { PhraseSuggestions } from "@/components/PhraseSuggestions";
 import { BRAND } from "@/lib/brand";
 import { isGiftComplete } from "@/lib/gift";
 import { compressImage } from "@/lib/image";
 import { QUESTIONS } from "@/lib/questions";
+import { captionSuggestions, letterSuggestions, questionSuggestions } from "@/lib/suggestions";
 import { randomId } from "@/lib/slug";
 import { getSessionEmail, getLocalGiftById, loadDraft, saveDraft, setSessionEmail, upsertLocalGift } from "@/lib/store";
 import type { Gift } from "@/lib/types";
@@ -199,7 +201,7 @@ export function CreateWizard() {
                 <input className="hidden" type="file" accept="image/*" multiple onChange={(e) => void onPhotos(e.target.files)} />
               </label>
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                {gift.photos.map((photo) => (
+                {gift.photos.map((photo, index) => (
                   <figure key={photo.id} className="overflow-hidden rounded-2xl bg-white">
                     <img src={photo.src} alt="" className="h-36 w-full object-cover" />
                     <input
@@ -210,6 +212,19 @@ export function CreateWizard() {
                         update({
                           photos: gift.photos.map((item) =>
                             item.id === photo.id ? { ...item, caption: e.target.value } : item,
+                          ),
+                        })
+                      }
+                    />
+                    <PhraseSuggestions
+                      compact
+                      seed={index}
+                      suggestions={captionSuggestions()}
+                      value={photo.caption}
+                      onPick={(caption) =>
+                        update({
+                          photos: gift.photos.map((item) =>
+                            item.id === photo.id ? { ...item, caption } : item,
                           ),
                         })
                       }
@@ -261,6 +276,18 @@ export function CreateWizard() {
                   })
                 }
               />
+              <PhraseSuggestions
+                key={question.id}
+                suggestions={questionSuggestions(question.id)}
+                value={answer}
+                onPick={(text) =>
+                  update({
+                    answers: gift.answers.map((item) =>
+                      item.id === question.id ? { ...item, text } : item,
+                    ),
+                  })
+                }
+              />
               <div className="flex gap-3">
                 <button
                   className="rounded-full px-4 py-3 font-bold text-muted"
@@ -290,6 +317,11 @@ export function CreateWizard() {
                 value={gift.letter}
                 onChange={(e) => update({ letter: e.target.value })}
                 placeholder="Maya, eu podia te dar qualquer coisa hoje..."
+              />
+              <PhraseSuggestions
+                suggestions={letterSuggestions(gift.authorName, gift.recipientName)}
+                value={gift.letter}
+                onPick={(letter) => update({ letter })}
               />
             </section>
           ) : null}
