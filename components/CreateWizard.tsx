@@ -7,7 +7,7 @@ import { GiftExperience } from "@/components/GiftExperience";
 import { Logo } from "@/components/Logo";
 import { PhraseSuggestions } from "@/components/PhraseSuggestions";
 import { BRAND } from "@/lib/brand";
-import { isGiftComplete } from "@/lib/gift";
+import { isGiftComplete, MAX_GIFT_PHOTOS } from "@/lib/gift";
 import { compressImage } from "@/lib/image";
 import { normalizeAnswers, QUESTIONS } from "@/lib/questions";
 import { captionSuggestions, letterSuggestions, questionSuggestions } from "@/lib/suggestions";
@@ -88,9 +88,9 @@ export function CreateWizard() {
 
   async function onPhotos(files: FileList | null) {
     if (!files || !gift) return;
-    const remaining = 7 - gift.photos.length;
+    const remaining = MAX_GIFT_PHOTOS - gift.photos.length;
     if (remaining <= 0) {
-      setError("O presente aceita até 7 fotos. Tira uma para colocar outra.");
+      setError(`O presente aceita até ${MAX_GIFT_PHOTOS} fotos. Tira uma para colocar outra.`);
       return;
     }
     setError("");
@@ -106,8 +106,8 @@ export function CreateWizard() {
   async function uploadQuestionPhoto(questionId: string, files: FileList | null) {
     const file = files?.[0];
     if (!file || !gift) return;
-    if (gift.photos.length >= 7) {
-      setError("O presente aceita até 7 fotos. Escolhe uma que já está aqui, ou tira outra.");
+    if (gift.photos.length >= MAX_GIFT_PHOTOS) {
+      setError(`O presente aceita até ${MAX_GIFT_PHOTOS} fotos. Escolhe uma que já está aqui, ou tira outra.`);
       return;
     }
     setError("");
@@ -323,14 +323,14 @@ export function CreateWizard() {
 
           {step === 2 ? (
             <section className="mt-4 space-y-4">
-              <h1 className="font-display text-4xl">Manda até 7 fotos</h1>
+              <h1 className="font-display text-4xl">Manda até {MAX_GIFT_PHOTOS} fotos</h1>
               <p className="text-muted">
                 As melhores. Na hora da pergunta, você escolhe qual foto acompanha cada resposta.
               </p>
               {error ? <p className="font-bold text-berry">{error}</p> : null}
               <label className="soft-card flex cursor-pointer flex-col items-center rounded-3xl border-dashed p-8 text-center">
                 <span className="font-extrabold text-berry">Escolher fotos</span>
-                <span className="text-sm text-muted">{gift.photos.length}/7</span>
+                <span className="text-sm text-muted">{gift.photos.length}/{MAX_GIFT_PHOTOS}</span>
                 <input className="hidden" type="file" accept="image/*" multiple onChange={(e) => void onPhotos(e.target.files)} />
               </label>
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">

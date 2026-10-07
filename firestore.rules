@@ -68,7 +68,7 @@ service cloud.firestore {
     }
 
     function isValidPhotos(photos) {
-      return photos is list && photos.size() <= 7 &&
+      return photos is list && photos.size() <= 12 &&
         (photos.size() == 0 ||
           (isValidPhotoMeta(photos[0]) &&
            (photos.size() < 2 || isValidPhotoMeta(photos[1])) &&
@@ -76,14 +76,22 @@ service cloud.firestore {
            (photos.size() < 4 || isValidPhotoMeta(photos[3])) &&
            (photos.size() < 5 || isValidPhotoMeta(photos[4])) &&
            (photos.size() < 6 || isValidPhotoMeta(photos[5])) &&
-           (photos.size() < 7 || isValidPhotoMeta(photos[6]))));
+           (photos.size() < 7 || isValidPhotoMeta(photos[6])) &&
+           (photos.size() < 8 || isValidPhotoMeta(photos[7])) &&
+           (photos.size() < 9 || isValidPhotoMeta(photos[8])) &&
+           (photos.size() < 10 || isValidPhotoMeta(photos[9])) &&
+           (photos.size() < 11 || isValidPhotoMeta(photos[10])) &&
+           (photos.size() < 12 || isValidPhotoMeta(photos[11]))));
     }
 
     function isValidAnswer(answer) {
       return answer.keys().hasOnly(['id', 'text', 'photoId']) &&
         validString(answer.id, 1, 40) &&
         answer.text is string && answer.text.size() <= 4000 &&
-        answer.photoId is string && answer.photoId.size() <= 40;
+        (
+          !answer.keys().hasAny(['photoId']) ||
+          (answer.photoId is string && answer.photoId.size() <= 40)
+        );
     }
 
     function isValidAnswers(answers) {
@@ -143,7 +151,7 @@ service cloud.firestore {
         validString(data.id, 1, 40) &&
         isValidPhotoSrc(data.src) &&
         data.caption is string && data.caption.size() <= 180 &&
-        (data.order is int || data.order is float) && data.order >= 0 && data.order <= 6;
+        (data.order is int || data.order is float) && data.order >= 0 && data.order <= 11;
     }
 
     match /users/{userId} {
@@ -167,9 +175,7 @@ service cloud.firestore {
         resource.data.ownerUid == request.auth.uid &&
         isValidGift(request.resource.data) &&
         request.resource.data.id == resource.data.id &&
-        request.resource.data.slug == resource.data.slug &&
         request.resource.data.ownerUid == resource.data.ownerUid &&
-        request.resource.data.createdAt == resource.data.createdAt &&
         request.resource.data.paid == resource.data.paid &&
         request.resource.data.status == resource.data.status;
       allow delete: if false;

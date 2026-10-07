@@ -9,7 +9,7 @@ import {
 } from "firebase/firestore";
 import { getFirebaseDb } from "@/lib/firebase/client";
 import type { Gift, GiftPhoto } from "@/lib/types";
-import { toPublicGift } from "@/lib/gift";
+import { MAX_GIFT_PHOTOS, toPublicGift } from "@/lib/gift";
 
 type PhotoDoc = GiftPhoto & { order: number };
 
@@ -30,7 +30,7 @@ function sanitizeGiftPayload(gift: Gift, uid: string): Gift {
     recipientName: clip(gift.recipientName, 80),
     startDate: clip(gift.startDate, 20),
     youtubeUrl: clip(gift.youtubeUrl, 300),
-    photos: gift.photos.slice(0, 7).map((photo) => ({
+    photos: gift.photos.slice(0, MAX_GIFT_PHOTOS).map((photo) => ({
       id: clip(photo.id, 40),
       caption: clip(photo.caption, 180),
       src: "",
@@ -54,14 +54,18 @@ async function writePhotos(
   const db = getFirebaseDb();
   if (!db) throw new Error("Firebase não configurado");
   await Promise.all(
-    photos.slice(0, 7).map((photo, order) =>
-      setDoc(doc(db, path[0], path[1], path[2], clip(photo.id, 40)), {
-        id: clip(photo.id, 40),
-        src: photo.src.slice(0, 900_000),
-        caption: clip(photo.caption, 180),
-        order,
-      } satisfies PhotoDoc),
-    ),
+    photos.slice(0, MAX_GIFT_PHOTOS).flatMap((photo, order) => {
+      const src = photo.src.slice(0, 900_000);
+      if (src.length <= 12) return [];
+      return [
+        setDoc(doc(db, path[0], path[1], path[2], clip(photo.id, 40)), {
+          id: clip(photo.id, 40),
+          src,
+          caption: clip(photo.caption, 180),
+          order,
+        } satisfies PhotoDoc),
+      ];
+    }),
   );
 }
 
@@ -79,7 +83,19 @@ export async function saveGiftRemote(gift: Gift, uid: string) {
   const db = getFirebaseDb();
   if (!db) throw new Error("Firebase não configurado");
 
-  const payload = sanitizeGiftPayload(gift, uid);
+  const existingSnap = await getDoc(doc(db, "gifts", gift.id));
+  const existing = existingSnap.exists() ? (existingSnap.data() as Gift) : null;
+  const payload = sanitizeGiftPayload(
+    {
+      ...gift,
+      createdAt: existing?.createdAt || gift.createdAt,
+      slug: existing?.slug || gift.slug,
+      paid: existing ? existing.paid : gift.paid,
+      status: existing ? existing.status : gift.status,
+      publishedAt: existing ? existing.publishedAt : gift.publishedAt,
+    },
+    uid,
+  );
 
   await setDoc(doc(db, "gifts", gift.id), payload, { merge: true });
   await writePhotos(["gifts", gift.id, "photos"], gift.photos);

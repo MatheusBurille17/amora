@@ -2,6 +2,8 @@ import type { Gift } from "@/lib/types";
 import { emptyAnswers } from "@/lib/questions";
 import { randomId } from "@/lib/slug";
 
+export const MAX_GIFT_PHOTOS = 12;
+
 export function createDraft(partial?: Partial<Gift>): Gift {
   const now = new Date().toISOString();
   return {
