@@ -18,6 +18,7 @@ import { extractYoutubeId } from "@/lib/youtube";
 import { useAuth } from "@/components/AuthProvider";
 import { firebaseEnabled, getFirebaseAuth } from "@/lib/firebase/client";
 import { getGiftRemote, saveGiftRemote } from "@/lib/firebase/gifts";
+import { isComplimentaryEmail } from "@/lib/complimentary";
 import { startCheckout } from "@/lib/pay";
 import {
   authErrorMessage,
@@ -104,8 +105,8 @@ export function CreateWizard() {
     const paidLocal = { ...gift, email, updatedAt: new Date().toISOString() };
     saveDraft(paidLocal);
     try {
+      const auth = getFirebaseAuth();
       if (firebaseEnabled) {
-        const auth = getFirebaseAuth();
         let uid = auth?.currentUser?.uid ?? user?.uid;
         if (!uid) {
           const account =
@@ -116,8 +117,9 @@ export function CreateWizard() {
         }
         await saveGiftRemote({ ...paidLocal, paid: false, status: "draft" }, uid);
       }
-      const data = await startCheckout(paidLocal.email, paidLocal.id);
-      if (data.demo) {
+      const idToken = await auth?.currentUser?.getIdToken();
+      const data = await startCheckout(paidLocal.email, paidLocal.id, idToken);
+      if (data.demo || data.complimentary) {
         const published = {
           ...paidLocal,
           paid: true,
@@ -330,7 +332,9 @@ export function CreateWizard() {
             <section className="mt-4 space-y-4">
               <h1 className="font-display text-4xl">Liberar o recado</h1>
               <p className="text-muted">
-                {BRAND.priceLabel} uma vez. Cria sua conta, paga, e o QR fica no seu painel para sempre.
+                {isComplimentaryEmail(user?.email)
+                  ? "Sua conta libera o recado sem pagamento. O QR fica no seu painel para sempre."
+                  : `${BRAND.priceLabel} uma vez. Cria sua conta, paga, e o QR fica no seu painel para sempre.`}
               </p>
               {user ? (
                 <div className="soft-card rounded-3xl p-5">
@@ -386,9 +390,17 @@ export function CreateWizard() {
               </div>
               {error ? <p className="font-bold text-berry">{error}</p> : null}
               <button className="btn-primary w-full" disabled={busy} onClick={() => void checkout()}>
-                {busy ? "Abrindo pagamento..." : `Pagar ${BRAND.priceLabel} e gerar QR`}
+                {busy
+                  ? isComplimentaryEmail(user?.email)
+                    ? "Liberando..."
+                    : "Abrindo pagamento..."
+                  : isComplimentaryEmail(user?.email)
+                    ? "Liberar e gerar QR"
+                    : `Pagar ${BRAND.priceLabel} e gerar QR`}
               </button>
-              <p className="text-center text-sm text-muted">Pix e cartão via Mercado Pago. Sem mensalidade.</p>
+              {isComplimentaryEmail(user?.email) ? null : (
+                <p className="text-center text-sm text-muted">Pix e cartão via Mercado Pago. Sem mensalidade.</p>
+              )}
             </section>
           ) : null}
 

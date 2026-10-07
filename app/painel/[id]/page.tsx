@@ -8,6 +8,8 @@ import { QrPanel } from "@/components/QrPanel";
 import { useAuth } from "@/components/AuthProvider";
 import { authErrorMessage, firebaseEnabled } from "@/lib/firebase/auth";
 import { getGiftRemote } from "@/lib/firebase/gifts";
+import { isComplimentaryEmail } from "@/lib/complimentary";
+import { getFirebaseAuth } from "@/lib/firebase/client";
 import { startCheckout } from "@/lib/pay";
 import { getLocalGiftById } from "@/lib/store";
 import type { Gift } from "@/lib/types";
@@ -60,7 +62,17 @@ export default function PainelGiftPage() {
     setBusy(true);
     setError("");
     try {
-      const data = await startCheckout(email, gift.id);
+      const idToken = await getFirebaseAuth()?.currentUser?.getIdToken();
+      const data = await startCheckout(email, gift.id, idToken);
+      if (data.complimentary) {
+        setGift({
+          ...gift,
+          paid: true,
+          status: "published",
+          publishedAt: new Date().toISOString(),
+        });
+        return;
+      }
       if (data.demo) {
         router.push("/obrigado");
         return;
@@ -99,13 +111,24 @@ export default function PainelGiftPage() {
         <Link href="/painel" className="text-sm font-bold text-berry">
           ← Meus recados
         </Link>
-        <h1 className="mt-4 font-display text-4xl">Seu recado está salvo. Falta pagar.</h1>
+        <h1 className="mt-4 font-display text-4xl">
+          {isComplimentaryEmail(user?.email) ? "Seu recado está salvo." : "Seu recado está salvo. Falta pagar."}
+        </h1>
         <p className="mt-2 text-muted">
-          {gift.authorName} → {gift.recipientName}. O QR só libera depois do Pix ou cartão.
+          {gift.authorName} → {gift.recipientName}.{" "}
+          {isComplimentaryEmail(user?.email)
+            ? "Sua conta libera o QR sem pagamento."
+            : "O QR só libera depois do Pix ou cartão."}
         </p>
         {error ? <p className="mt-4 font-bold text-berry">{error}</p> : null}
         <button className="btn-primary mt-8 w-full" disabled={busy} onClick={() => void payNow()}>
-          {busy ? "Abrindo pagamento..." : "Pagar e gerar QR"}
+          {busy
+            ? isComplimentaryEmail(user?.email)
+              ? "Liberando..."
+              : "Abrindo pagamento..."
+            : isComplimentaryEmail(user?.email)
+              ? "Liberar e gerar QR"
+              : "Pagar e gerar QR"}
         </button>
         <Link href={`/criar?editar=${gift.id}`} className="mt-4 block text-center font-bold text-berry">
           Continuar editando
