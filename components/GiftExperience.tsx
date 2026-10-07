@@ -18,12 +18,19 @@ type Scene =
   | { type: "letter" }
   | { type: "end" };
 
+function filledAnswers(gift: Gift) {
+  return gift.answers.filter((answer) => answer.text.trim());
+}
+
 function buildScenes(gift: Gift): Scene[] {
   const scenes: Scene[] = [{ type: "cover" }, { type: "counter" }];
-  gift.photos.forEach((_, index) => scenes.push({ type: "photo", index }));
-  gift.answers
-    .filter((answer) => answer.text.trim())
-    .forEach((_, index) => scenes.push({ type: "answer", index }));
+  const usedPhotoIds = new Set(
+    filledAnswers(gift).map((answer) => answer.photoId).filter(Boolean),
+  );
+  gift.photos.forEach((photo, index) => {
+    if (!usedPhotoIds.has(photo.id)) scenes.push({ type: "photo", index });
+  });
+  filledAnswers(gift).forEach((_, index) => scenes.push({ type: "answer", index }));
   if (gift.letter.trim()) scenes.push({ type: "letter" });
   scenes.push({ type: "end" });
   return scenes;
@@ -38,7 +45,12 @@ function scenePhotoSrc(gift: Gift, scene: Scene) {
   if (!photos.length) return null;
   if (scene.type === "photo") return gift.photos[scene.index]?.src ?? photos[0].src;
   if (scene.type === "counter") return photos[Math.min(1, photos.length - 1)]?.src;
-  if (scene.type === "answer") return photos[scene.index % photos.length]?.src;
+  if (scene.type === "answer") {
+    const answer = filledAnswers(gift)[scene.index];
+    const linked = gift.photos.find((photo) => photo.id === answer?.photoId && photo.src);
+    if (linked) return linked.src;
+    return photos[scene.index % photos.length]?.src ?? null;
+  }
   if (scene.type === "letter") return photos[photos.length - 1]?.src;
   return photos[0].src;
 }
@@ -122,7 +134,10 @@ export function GiftExperience({
   const youtubeId = extractYoutubeId(gift.youtubeUrl);
   const scene = scenes[index] ?? { type: "cover" as const };
   const time = now ? timeTogether(gift.startDate, now) : null;
-  const filledAnswers = gift.answers.filter((answer) => answer.text.trim());
+  const answersOnScreen = filledAnswers(gift);
+  const sceneAnswer = scene.type === "answer" ? answersOnScreen[scene.index] : undefined;
+  const sceneQuestion = QUESTIONS.find((item) => item.id === sceneAnswer?.id);
+  const sceneAnswerPhoto = gift.photos.find((photo) => photo.id === sceneAnswer?.photoId);
   const backgroundSrc = scenePhotoSrc(gift, scene);
 
   useEffect(() => {
@@ -273,14 +288,17 @@ export function GiftExperience({
         {scene.type === "answer" ? (
           <div className="space-y-3">
             <p className="text-sm uppercase tracking-[0.28em] text-blush">
-              {QUESTIONS.find((item) => item.id === filledAnswers[scene.index]?.id)?.title}
+              {sceneQuestion?.title}
             </p>
             <h2 className="font-display text-3xl leading-tight">
-              {QUESTIONS.find((item) => item.id === filledAnswers[scene.index]?.id)?.prompt}
+              {sceneQuestion?.prompt}
             </h2>
             <p className="text-lg leading-relaxed text-white/85">
-              {filledAnswers[scene.index]?.text}
+              {sceneAnswer?.text}
             </p>
+            {sceneAnswerPhoto?.caption ? (
+              <p className="text-sm text-white/70">{sceneAnswerPhoto.caption}</p>
+            ) : null}
           </div>
         ) : null}
 

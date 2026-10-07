@@ -40,18 +40,22 @@ export const DEMO_GIFT: Gift = {
   answers: [
     {
       id: "inicio",
+      photoId: "1",
       text: "Numa festa em que os dois queriam ir embora cedo. Acabamos fechando o lugar conversando na calçada.",
     },
     {
       id: "detalhe",
+      photoId: "2",
       text: "O jeito que você fala baixo quando está animada, como se o mundo fosse um segredo nosso.",
     },
     {
       id: "memoria",
+      photoId: "3",
       text: "Aquele pastel na chuva, compartilhando o fone, sem plano nenhum. Eu soube ali.",
     },
     {
       id: "frase",
+      photoId: "4",
       text: "‘Vem cá, amor’ — e eu já sei se é abraço, conselho ou pipoca.",
     },
   ],

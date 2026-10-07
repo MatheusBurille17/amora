@@ -37,6 +37,19 @@ export const QUESTIONS: Question[] = [
   },
 ];
 
-export function emptyAnswers(): { id: string; text: string }[] {
-  return QUESTIONS.map((question) => ({ id: question.id, text: "" }));
+export function emptyAnswers(): { id: string; text: string; photoId: string }[] {
+  return QUESTIONS.map((question) => ({ id: question.id, text: "", photoId: "" }));
+}
+
+export function normalizeAnswers(
+  answers: { id?: string; text?: string; photoId?: string }[] | undefined,
+) {
+  return QUESTIONS.map((question) => {
+    const found = answers?.find((item) => item?.id === question.id);
+    return {
+      id: question.id,
+      text: String(found?.text ?? "").slice(0, 4000),
+      photoId: String(found?.photoId ?? "").slice(0, 40),
+    };
+  });
 }

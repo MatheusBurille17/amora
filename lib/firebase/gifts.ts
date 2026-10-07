@@ -38,6 +38,7 @@ function sanitizeGiftPayload(gift: Gift, uid: string): Gift {
     answers: gift.answers.slice(0, 4).map((answer) => ({
       id: clip(answer.id, 40),
       text: clip(answer.text, 4000),
+      photoId: clip(answer.photoId ?? "", 40),
     })),
     letter: clip(gift.letter, 8000),
     createdAt: gift.createdAt || now,

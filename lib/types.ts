@@ -10,6 +10,7 @@ export type GiftPhoto = {
 export type GiftAnswer = {
   id: string;
   text: string;
+  photoId: string;
 };
 
 export type Gift = {

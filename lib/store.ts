@@ -1,5 +1,6 @@
 import type { Gift } from "@/lib/types";
 import { createDraft } from "@/lib/gift";
+import { normalizeAnswers } from "@/lib/questions";
 
 const DRAFT_KEY = "amora.draft";
 const GIFTS_KEY = "amora.gifts";
@@ -14,7 +15,8 @@ export function loadDraft(): Gift {
   const raw = localStorage.getItem(DRAFT_KEY);
   if (!raw) return createDraft();
   try {
-    return { ...createDraft(), ...JSON.parse(raw) };
+    const parsed = JSON.parse(raw) as Gift;
+    return { ...createDraft(), ...parsed, answers: normalizeAnswers(parsed.answers) };
   } catch {
     return createDraft();
   }

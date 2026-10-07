@@ -80,9 +80,10 @@ service cloud.firestore {
     }
 
     function isValidAnswer(answer) {
-      return answer.keys().hasOnly(['id', 'text']) &&
+      return answer.keys().hasOnly(['id', 'text', 'photoId']) &&
         validString(answer.id, 1, 40) &&
-        answer.text is string && answer.text.size() <= 4000;
+        answer.text is string && answer.text.size() <= 4000 &&
+        answer.photoId is string && answer.photoId.size() <= 40;
     }
 
     function isValidAnswers(answers) {
