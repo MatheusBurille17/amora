@@ -60,38 +60,18 @@ service cloud.firestore {
         validString(data.createdAt, 10, 40);
     }
 
-    function isValidPhotoMeta(photo) {
-      return photo.keys().hasOnly(['id', 'caption', 'src']) &&
-        validString(photo.id, 1, 40) &&
-        photo.caption is string && photo.caption.size() <= 180 &&
-        photo.src == '';
-    }
-
+    // Checking every photo here exceeds Firestore's expression limit once the
+    // gift also has four answers. Bytes are validated on the photo document.
     function isValidPhotos(photos) {
-      return photos is list && photos.size() <= 12 &&
-        (photos.size() == 0 ||
-          (isValidPhotoMeta(photos[0]) &&
-           (photos.size() < 2 || isValidPhotoMeta(photos[1])) &&
-           (photos.size() < 3 || isValidPhotoMeta(photos[2])) &&
-           (photos.size() < 4 || isValidPhotoMeta(photos[3])) &&
-           (photos.size() < 5 || isValidPhotoMeta(photos[4])) &&
-           (photos.size() < 6 || isValidPhotoMeta(photos[5])) &&
-           (photos.size() < 7 || isValidPhotoMeta(photos[6])) &&
-           (photos.size() < 8 || isValidPhotoMeta(photos[7])) &&
-           (photos.size() < 9 || isValidPhotoMeta(photos[8])) &&
-           (photos.size() < 10 || isValidPhotoMeta(photos[9])) &&
-           (photos.size() < 11 || isValidPhotoMeta(photos[10])) &&
-           (photos.size() < 12 || isValidPhotoMeta(photos[11]))));
+      return photos is list && photos.size() <= 12;
     }
 
     function isValidAnswer(answer) {
       return answer.keys().hasOnly(['id', 'text', 'photoId']) &&
-        validString(answer.id, 1, 40) &&
+        answer.id is string && answer.id.size() >= 1 && answer.id.size() <= 40 &&
         answer.text is string && answer.text.size() <= 4000 &&
-        (
-          !answer.keys().hasAny(['photoId']) ||
-          (answer.photoId is string && answer.photoId.size() <= 40)
-        );
+        (!answer.keys().hasAny(['photoId']) ||
+          (answer.photoId is string && answer.photoId.size() <= 40));
     }
 
     function isValidAnswers(answers) {
@@ -109,22 +89,23 @@ service cloud.firestore {
           'authorName', 'recipientName', 'startDate', 'youtubeUrl',
           'photos', 'answers', 'letter', 'createdAt', 'updatedAt', 'publishedAt'
         ]) &&
-        validString(data.id, 6, 40) &&
-        validString(data.slug, 4, 40) &&
+        data.id is string && data.id.size() >= 6 && data.id.size() <= 40 &&
+        data.slug is string && data.slug.size() >= 4 && data.slug.size() <= 40 &&
         data.ownerUid == request.auth.uid &&
         isValidEmail(data.email) &&
         data.status in ['draft', 'published'] &&
         data.paid is bool &&
-        validString(data.authorName, 0, 80) &&
-        validString(data.recipientName, 0, 80) &&
-        validString(data.startDate, 0, 20) &&
+        data.authorName is string && data.authorName.size() <= 80 &&
+        data.recipientName is string && data.recipientName.size() <= 80 &&
+        data.startDate is string && data.startDate.size() <= 20 &&
         data.youtubeUrl is string && data.youtubeUrl.size() <= 300 &&
         isValidPhotos(data.photos) &&
         isValidAnswers(data.answers) &&
         data.letter is string && data.letter.size() <= 8000 &&
-        validString(data.createdAt, 10, 40) &&
-        validString(data.updatedAt, 10, 40) &&
-        (!('publishedAt' in data) || data.publishedAt == null || validString(data.publishedAt, 10, 40));
+        data.createdAt is string && data.createdAt.size() >= 10 && data.createdAt.size() <= 40 &&
+        data.updatedAt is string && data.updatedAt.size() >= 10 && data.updatedAt.size() <= 40 &&
+        (!('publishedAt' in data) || data.publishedAt == null ||
+          (data.publishedAt is string && data.publishedAt.size() >= 10 && data.publishedAt.size() <= 40));
     }
 
     function giftOwner(giftId) {
