@@ -2,13 +2,13 @@ import { NextResponse } from "next/server";
 import { randomId } from "@/lib/slug";
 import { BRAND } from "@/lib/brand";
 import { isComplimentaryEmail } from "@/lib/complimentary";
-import { getAdminAuth, getAdminDb } from "@/lib/firebase/admin";
+import { getAdminDb } from "@/lib/firebase/admin";
+import { readIdToken } from "@/lib/firebase/id-token";
 import { publishGiftAdmin } from "@/lib/firebase/publish";
 
 async function releaseComplimentaryGift(request: Request, email: string, giftId: string) {
-  const auth = getAdminAuth();
   const db = getAdminDb();
-  if (!auth || !db) return null;
+  if (!db) return null;
 
   const header = request.headers.get("authorization") ?? "";
   const token = header.startsWith("Bearer ") ? header.slice("Bearer ".length) : "";
@@ -16,13 +16,11 @@ async function releaseComplimentaryGift(request: Request, email: string, giftId:
     return NextResponse.json({ error: "Entra na sua conta para liberar o recado." }, { status: 401 });
   }
 
-  let decoded;
-  try {
-    decoded = await auth.verifyIdToken(token);
-  } catch {
+  const decoded = await readIdToken(token);
+  if (!decoded) {
     return NextResponse.json({ error: "Sua sessão expirou. Entra de novo." }, { status: 401 });
   }
-  const tokenEmail = decoded.email?.toLowerCase() ?? "";
+  const tokenEmail = decoded.email;
   if (!isComplimentaryEmail(tokenEmail) || tokenEmail !== email) {
     return NextResponse.json({ error: "Essa conta não libera sem pagamento." }, { status: 403 });
   }
@@ -66,10 +64,12 @@ async function releaseComplimentaryGift(request: Request, email: string, giftId:
 
 export async function POST(request: Request) {
   try {
-    const body = (await request.json()) as {
-      email?: string;
-      giftId?: string;
-    };
+    let body: { email?: string; giftId?: string };
+    try {
+      body = (await request.json()) as { email?: string; giftId?: string };
+    } catch {
+      return NextResponse.json({ error: "Pedido incompleto." }, { status: 400 });
+    }
     const email = String(body.email ?? "").trim().toLowerCase();
     const giftId = String(body.giftId ?? "");
     if (!email || !giftId) {

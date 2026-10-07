@@ -1,5 +1,4 @@
 import { cert, getApps, initializeApp } from "firebase-admin/app";
-import { getAuth } from "firebase-admin/auth";
 import { getFirestore } from "firebase-admin/firestore";
 
 function getPrivateKey() {
@@ -29,9 +28,4 @@ export function getAdminApp() {
 export function getAdminDb() {
   const app = getAdminApp();
   return app ? getFirestore(app) : null;
-}
-
-export function getAdminAuth() {
-  const app = getAdminApp();
-  return app ? getAuth(app) : null;
 }
